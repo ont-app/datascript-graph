@@ -6,6 +6,7 @@
    [datascript.db :as db]
    [igraph.core :as igraph :refer :all]
    [igraph.graph :as graph]
+   [taoensso.timbre :as log]
    #_[datascript.transit :as dt])
   (:gen-class))
 
@@ -30,11 +31,12 @@ Where
   IGraph
   (normal-form [this] (get-normal-form db))
   (add [this to-add] (add-to-graph this to-add))
+  (subtract [this to-subtract] (remove-from-graph this to-subtract))
   (subjects [this] (get-subjects db))
   (get-p-o [this s] (query-for-p-o db s))
   (get-o [this s p] (query-for-o db s p))
   (ask [this s p o] (ask-s-p-o db s p o))
-  (query [this query-spec] (normalized-query-output this query-spec))
+  (query [this query-spec] (normalized-query-output db query-spec))
   
   clojure.lang.IFn
   (invoke [g] (normal-form g))
@@ -85,11 +87,7 @@ Where
 <s> is a subject s.t. [<e> ::id <s>] in (:db <g>)
 <g> is an instance of DatascriptGraph
 "
-  (unique
-   (d/q '[:find [?e]
-          :in $ ?s
-          :where [?e ::id ?s]]
-        db s)))
+  (d/entity db s))
 
 (defn get-reference [db e]
   "Returns <s> for <e> in <g>
@@ -98,6 +96,7 @@ Where
 <e> is the entity ID (a positive integer) in (:db <g>)
 <g> is an instance of DatascriptGraph
 "
+  
   (unique
    (d/q '[:find [?s]
           :in $ ?e
@@ -117,7 +116,7 @@ Where
     v))
 
 ;; Declared in igraph.core
-(defmethod add-to-graph [DatascriptGraph :normal-form] [g triples]
+#_(defmethod add-to-graph [DatascriptGraph :normal-form] [g triples]
   (let [s->db-id (into {}
                        (map (fn [s id] [s id])
                             (keys triples)
@@ -131,8 +130,7 @@ Where
               ;; returns {e :db/id <id>, <p> <o>}
               (let [o' (or (get-id o)
                            o)]
-                (conj acc {:db/id id 
-                           p o'})))
+                (conj acc {:db/id id p o'})))
           
             (collect-p-o [id acc p o]
               ;; accumulates [<datom>...]
@@ -151,6 +149,120 @@ Where
       (assoc g :db
              (d/db-with (:db g)
                         (reduce-kv collect-s-po [] triples))))))
+
+(defmethod add-to-graph [DatascriptGraph :normal-form] [g triples]
+  (let [s->db-id (atom
+                  (into {}
+                        (map (fn [s id] [s id])
+                             (keys triples)
+                             (map (comp - inc) (range)))))
+        schema (:schema (:db g))
+        check-o (fn [p o]
+                  ;; returns p of o checks out else throws error
+                  (when (some (complement keyword?) o)
+                    (throw (Exception.
+                            (str "No schema declaration for "
+                                 p
+                                 " and "
+                                 o
+                                 " contains non-keyword. "
+                                 "(Will only auto-declare for refs)"))))
+                  p)
+        ;; find p's with no schema decl...
+        no-schema (reduce-kv (fn [acc s po]
+                               (reduce-kv (fn [acc p o]
+                                            (if (schema p)
+                                              acc
+                                              (conj acc (check-o p o))))
+                                          acc
+                                          po
+                                          ))
+                             #{}
+                             triples)
+                                          
+        ]
+    (letfn [(get-id [db s]
+              ;; returns nil or {::value ... ::new?...}
+              ;; new? means there was a keyword in object
+              ;; position not covered by a subject in the
+              ;; triples
+              (if-let [id (get-entity-id db s)]
+                (do
+                  {::value id
+                   ::new? false})
+                (if-let [id (@s->db-id s)]
+                  (do
+                    {::value id
+                     ::new? false})
+                  ;; else this is an object with no id
+                  (if (keyword? s)
+                    ;; we need to add a new id for <s>
+                    (do (swap! s->db-id
+                               (fn [m]
+                                 (assoc m s
+                                        (- (inc (count m))))))
+                        {::value (@s->db-id s)
+                         ::new? true}))
+                  )))
+            
+            (collect-datom [db id p acc o]
+              ;; returns {e :db/id <id>, <p> <o>}
+              (let [db-id (get-id db o)
+                    new? (and (::value db-id) (::new? db-id))
+                    o' (or (::value db-id)
+                           o)
+                    ]
+                (conj (if new?
+                        (conj acc {:db/id o' ::id o})
+                        acc)
+                      {:db/id id p o'})))
+          
+            (collect-p-o [db id acc p o]
+              ;; accumulates [<datom>...]
+              (reduce (partial collect-datom db id p) acc o))
+
+
+            (collect-s-po [db acc s po]
+              ;; accumulates [<datom>...]
+              (let [id (::value (get-id db s))
+                    ]
+                (reduce-kv (partial collect-p-o db id)
+                           (conj acc {:db/id id, ::id s})
+                           po)))
+            
+            (update-schema [db]
+              ;; Intalls default schema declaration for new refs
+              (-> db
+                  (update 
+                      :schema
+                      (fn [schema]
+                        (reduce (fn [s p]
+                                  (assoc s p
+                                         {:db/type :db.type/ref
+                                          :db/cardinality :db.cardinality/many
+                                          }))
+                                schema
+                                no-schema)))
+                  (update
+                   :rschema
+                   (fn [rschema]
+                     (reduce (fn [r p]
+                               (->
+                                r
+                                (update :db/index #(conj (or % #{})  p))
+                                (update :db.type/ref #(conj (or % #{}) p))
+                                (update :db.cardinality/many
+                                        #(conj (or % #{}) p))))
+                             rschema
+                             no-schema)))))
+
+                      
+            ]
+      (let [db' (update-schema (:db g))
+            ]
+        (assoc g :db
+               (d/db-with db'
+                (reduce-kv (partial collect-s-po db') [] triples)))))))
 
 
 ;; Declared in igraph.core
@@ -263,7 +375,6 @@ Where
 "
   (let [collect-datum
         (fn [acc datom]
-          ;;#dbg
           (let [[s->po, e->av, e->s] acc
                 [e a v t] datom
                 ]
@@ -315,6 +426,7 @@ Where
         ]
     (with-meta
       (into {}
+            ;; remove subtraction-dregs
             (filter (fn [[k v]]
                       (not (empty? v)))
                     (first
@@ -362,16 +474,10 @@ Where
 (defn ask-s-p-o [db s p o]
   "Returns true if [<s> <p> <o>] is in <db>
 "
-  (not (empty?
-        (d/q '[:find ?e
-               :in $ ?s ?p ?o
-               :where
-               [?e :datascript-graph.core/id ?s]
-               [?e ?p ?o]]
-             db s p o))))
+   ((query-for-o db s p) o))
 
 
-(defn normalized-query-output [db query-spec]
+(defn normalized-query-output 
   "Returns [<binding> ...] per igraph spec for <query-spec> posed to <db>
 Where
 <binding> := {<var> <value> ...} 
@@ -385,6 +491,9 @@ Where
   := [<db>] otherwise
 <arg> matches and element of any :in clause in <query>
 "
+  [db query-spec]
+  {:pre [(= (type db) datascript.db.DB)]
+   }
   (let [q (if (map? query-spec)
             (:query query-spec)
             query-spec)
@@ -395,14 +504,14 @@ Where
                       ;; {<key> <value>...} for <i>
                       (assoc acc (ks i) (result i)))
         
-        normalize (fn [ks acc result]
+        normalize (fn [ks result]
                     ;; {<key> <value> ...} for <value> in <result>
                     ;; <ks> := [<key1> ... <keyn>]
                     ;; <result> := [<val1> ... <valn>]
                     (assert (= (count ks)
                                (count result)))
                     (reduce (partial collect-key ks result)
-                            acc
+                            {}
                             (range (count result))))
         find-clause (fn [q]
                       ;; returns [<key> ...]
@@ -412,9 +521,8 @@ Where
                                 :elements)))
 
         ]
-    (reduce (partial normalize (find-clause q))
-            {}
-            (apply d/q (vec (concat [q] args))))))
+    (map (partial normalize (find-clause q))
+         (apply d/q (vec (concat [q] args))))))
 
 ;; SET OPERATIONS
 (defn graph-union [g1 g2]
@@ -424,22 +532,23 @@ TODO:Redo when you have data to develop for scale.
 "
   (add (make-graph (merge (:schema (:db g1))
                           (:schema (:db g2))))
-       (normal-form (union (graph/make-graph (g1))
-                           (graph/make-graph (g2))))))
+       (normal-form (union (add (graph/make-graph) (g1))
+                           (add (graph/make-graph) (g2))))))
+
 (defn graph-difference [g1 g2]
   "This uses igraph.graph/Graph as scratch, and probably won't scale.
 TODO:Redo when you have data to develop for scale.
 "
   (add (make-graph (:schema (:db g1)))
-       (normal-form (difference (graph/make-graph (g1))
-                                (graph/make-graph (g2))))))
+       (normal-form (difference (add (graph/make-graph) (g1))
+                                (add (graph/make-graph) (g2))))))
 
 (defn graph-intersection [g1 g2]
   "This uses igraph.graph/Graph as scratch, and probably won't scale.
 TODO:Redo when you have data to develop for scale.
 "
   (add (make-graph (:schema (:db g1)))
-       (normal-form (intersection (graph/make-graph (g1))
-                                  (graph/make-graph (g2))))))
+       (normal-form (intersection (add (graph/make-graph) (g1))
+                                  (add (graph/make-graph) (g2))))))
   
 
