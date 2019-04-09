@@ -17,4 +17,3 @@ pom.xml.asc
 .hg/
 *~
 *#
-*package-lock.json
