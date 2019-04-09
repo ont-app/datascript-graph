@@ -1,14 +1,16 @@
 (ns datascript-graph.core
   (:require
    [clojure.set :as set]
-   [clojure.string :as str]
+   ;; [clojure.string :as str]
    [datascript.core :as d]
    [datascript.db :as db]
-   [igraph.core :as igraph :refer :all]
+   [igraph.core :as igraph]
    [igraph.graph :as graph]
-   [taoensso.timbre :as log]
+   ;;[taoensso.timbre :as log]
    #_[datascript.transit :as dt])
-  (:gen-class))
+  ;; (:gen-class)
+  )
+
 
 (declare graph-union)
 (declare graph-difference)
@@ -28,27 +30,37 @@ Where
 "
     }
     DatascriptGraph [db]
-  IGraph
+  igraph/IGraph
   (normal-form [this] (get-normal-form db))
-  (add [this to-add] (add-to-graph this to-add))
-  (subtract [this to-subtract] (remove-from-graph this to-subtract))
+  (add [this to-add] (igraph/add-to-graph this to-add))
+  (subtract [this to-subtract] (igraph/remove-from-graph this to-subtract))
   (subjects [this] (get-subjects db))
   (get-p-o [this s] (query-for-p-o db s))
   (get-o [this s p] (query-for-o db s p))
   (ask [this s p o] (ask-s-p-o db s p o))
   (query [this query-spec] (normalized-query-output db query-spec))
   
-  clojure.lang.IFn
-  (invoke [g] (normal-form g))
-  (invoke [g s] (get-p-o g s))
-  (invoke [g s p] (match-or-traverse g s p))
-  (invoke [g s p o] (match-or-traverse g s p o))
+  #?(:clj clojure.lang.IFn
+     :cljs cljs.core/IFn)
+  (invoke [g] (igraph/normal-form g))
+  (invoke [g s] (igraph/get-p-o g s))
+  (invoke [g s p] (igraph/match-or-traverse g s p))
+  (invoke [g s p o] (igraph/match-or-traverse g s p o))
 
-  ISet
+  igraph/IGraphSet
   (union [g1 g2] (graph-union g1 g2))
   (difference [g1 g2] (graph-difference g1 g2))
   (intersection [g1 g2] (graph-intersection g1 g2))
   )
+
+(defn get-valAt [d avet]
+  "Calls (.valAt d avet) or (-lookup d avet nil) appropriate to clj/cljs
+Where
+<d> is a datom
+<avet> is a char, one of 'avet'
+"
+  #?(:clj (.valAt d avet)
+     :cljs (-lookup d avet nil)))
 
 (def igraph-schema
   "The basic schema that informs the IGraph implmentation.
@@ -97,7 +109,7 @@ Where
 <g> is an instance of DatascriptGraph
 "
   
-  (unique
+  (igraph/unique
    (d/q '[:find [?s]
           :in $ ?e
           :where [?e ::id ?s]]
@@ -150,7 +162,7 @@ Where
              (d/db-with (:db g)
                         (reduce-kv collect-s-po [] triples))))))
 
-(defmethod add-to-graph [DatascriptGraph :normal-form] [g triples]
+(defmethod igraph/add-to-graph [DatascriptGraph :normal-form] [g triples]
   (let [s->db-id (atom
                   (into {}
                         (map (fn [s id] [s id])
@@ -266,19 +278,19 @@ Where
 
 
 ;; Declared in igraph.core
-(defmethod add-to-graph [DatascriptGraph :vector-of-vectors] [g triples]
-  (add-to-graph g
-                (normal-form
-                 (add (graph/make-graph)
-                      (with-meta triples
-                        {:triples-format :vector-of-vectors})))))
+(defmethod igraph/add-to-graph [DatascriptGraph :vector-of-vectors] [g triples]
+  (igraph/add-to-graph g
+                       (igraph/normal-form
+                        (igraph/add (graph/make-graph)
+                                    (with-meta triples
+                                      {:triples-format :vector-of-vectors})))))
 ;; Declared in igraph.core
-(defmethod add-to-graph [DatascriptGraph :vector] [g triple]
-  (add-to-graph g
-                (normal-form
-                 (add (graph/make-graph)
-                      (with-meta [triple]
-                        {:triples-format :vector-of-vectors})))))
+(defmethod igraph/add-to-graph [DatascriptGraph :vector] [g triple]
+  (igraph/add-to-graph g
+                       (igraph/normal-form
+                        (igraph/add (graph/make-graph)
+                                    (with-meta [triple]
+                                      {:triples-format :vector-of-vectors})))))
 
 (defn- shared-keys [m1 m2]
   "Returns {<shared key>...} for <m1> and <m2>
@@ -289,7 +301,8 @@ Where
                     (set (keys m2))))
 
 
-(defmethod remove-from-graph [DatascriptGraph :normalForm] [g to-remove]
+(defmethod igraph/remove-from-graph [DatascriptGraph :normalForm]
+  [g to-remove]
   ;; (assoc g :db
   ;;        (d/db-with (:db g)
   ;;                   (reduce (par
@@ -298,7 +311,8 @@ Where
 
 
 
-(defmethod remove-from-graph [DatascriptGraph :vector-of-vectors] [g to-remove]
+(defmethod igraph/remove-from-graph [DatascriptGraph :vector-of-vectors]
+  [g to-remove]
   (letfn [(collect-remove-clause [acc v]
             (conj acc 
                   (case (count v)
@@ -328,13 +342,15 @@ Where
 
 
   
-(defmethod remove-from-graph [DatascriptGraph :vector] [g to-remove]
-  (remove-from-graph g (with-meta
-                         [to-remove]
-                         {:triples-format :vector-of-vectors})))
+(defmethod igraph/remove-from-graph [DatascriptGraph :vector]
+  [g to-remove]
+  (igraph/remove-from-graph g (with-meta
+                                [to-remove]
+                                {:triples-format :vector-of-vectors})))
   
 
-(defmethod remove-from-graph [DatascriptGraph :normal-form] [g to-remove]
+(defmethod igraph/remove-from-graph [DatascriptGraph :normal-form]
+  [g to-remove]
   (letfn [(collect-o [acc o]
             ;; acc is [s p]
             (conj acc o)
@@ -353,10 +369,10 @@ Where
                           (keys (get to-remove s)))))
 
           ]
-    (remove-from-graph
+    (igraph/remove-from-graph
      g
      (with-meta
-       (graph/vector-of-triples (add (graph/make-graph) to-remove))
+       (graph/vector-of-triples (igraph/add (graph/make-graph) to-remove))
        {:triples-format :vector-of-vectors}))))
 
 (defn get-subjects [db]
@@ -365,7 +381,7 @@ Where
 <s> is a subject s.t. [<e> ::id <s>] in <db>
 <db> is a Datascript DB
 "
-  (map (fn [d] (.valAt d "v"))
+  (map (fn [d] (get-valAt d "v"))
        (d/datoms db :avet ::id)))
 
 
@@ -373,7 +389,7 @@ Where
 (defn get-normal-form [db]
   "Returns contents of <db> s.t. {<s> {<p> #{<o>...}...}...}
 "
-  (let [collect-datum
+  (let [collect-datom
         (fn [acc datom]
           (let [[s->po, e->av, e->s] acc
                 [e a v t] datom
@@ -430,7 +446,7 @@ Where
             (filter (fn [[k v]]
                       (not (empty? v)))
                     (first
-                     (reduce collect-datum
+                     (reduce collect-datom
                              [{} {} {}]
                              (d/datoms db :eavt)))))
       {:triples-format :normal-form})))
@@ -530,25 +546,30 @@ Where
 This uses igraph.graph/Graph as scratch, and probably won't scale.
 TODO:Redo when you have data to develop for scale.
 "
-  (add (make-graph (merge (:schema (:db g1))
-                          (:schema (:db g2))))
-       (normal-form (union (add (graph/make-graph) (g1))
-                           (add (graph/make-graph) (g2))))))
+  (igraph/add (make-graph (merge (:schema (:db g1))
+                                 (:schema (:db g2))))
+       (igraph/normal-form (igraph/union
+                            (igraph/add (graph/make-graph) (g1))
+                            (igraph/add (graph/make-graph) (g2))))))
 
 (defn graph-difference [g1 g2]
   "This uses igraph.graph/Graph as scratch, and probably won't scale.
 TODO:Redo when you have data to develop for scale.
 "
-  (add (make-graph (:schema (:db g1)))
-       (normal-form (difference (add (graph/make-graph) (g1))
-                                (add (graph/make-graph) (g2))))))
+  (igraph/add (make-graph (:schema (:db g1)))
+              (igraph/normal-form
+               (igraph/difference
+                (igraph/add (graph/make-graph) (g1))
+                (igraph/add (graph/make-graph) (g2))))))
 
 (defn graph-intersection [g1 g2]
   "This uses igraph.graph/Graph as scratch, and probably won't scale.
 TODO:Redo when you have data to develop for scale.
 "
-  (add (make-graph (:schema (:db g1)))
-       (normal-form (intersection (add (graph/make-graph) (g1))
-                                  (add (graph/make-graph) (g2))))))
+  (igraph/add (make-graph (:schema (:db g1)))
+              (igraph/normal-form
+               (igraph/intersection
+                (igraph/add (graph/make-graph) (g1))
+                (igraph/add (graph/make-graph) (g2))))))
   
 

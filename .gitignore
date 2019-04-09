@@ -1,6 +1,11 @@
 /target
 /classes
+/cljs-test/datascript-graph/node_modules
 /checkouts
+/node_modules
+/out
+/resources
+
 profiles.clj
 pom.xml
 pom.xml.asc
@@ -12,3 +17,4 @@ pom.xml.asc
 .hg/
 *~
 *#
+*package-lock.json
