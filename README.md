@@ -7,7 +7,10 @@ under both clj and cljs.
 
 ## Installation
 
-Watch this space.
+This is available on [Clojars](https://clojars.org/ont-app/datascript-graph):
+
+[ont-app/datascript-graph "0.1.0-SNAPSHOT"]
+
 
 ## Usage
 

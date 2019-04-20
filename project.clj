@@ -1,4 +1,4 @@
-(defproject datascript-graph "0.1.0-SNAPSHOT"
+(defproject ont-app/datascript-graph "0.1.0-SNAPSHOT"
   :description "Defines a datascript implementation of the IGraph protocol."
   :url "http://example.com/FIXME"
   :license {:name "EPL-2.0 OR GPL-2.0-or-later WITH Classpath-exception-2.0"
@@ -15,7 +15,7 @@
   :cljsbuild
   {:builds
    ;; for testing the cljs incarnation
-   ;; run with 'lein doo firefox test', or swap in some other browser
+   ;; run with 'lein doo firefox test once', or swap in some other browser
    {:test {:source-paths ["src" "cljs-test"]
            :compiler {:output-to "resources/test/compiled.js"
                       ;; entry point for doo-runner:
