@@ -12,6 +12,10 @@
   )
 
 
+(defn Exception [msg]
+  #?(:clj (Exception. msg)
+     :cljs (js/Error msg)))
+
 (declare graph-union)
 (declare graph-difference)
 (declare graph-intersection)
@@ -127,170 +131,143 @@ Where
     (get-reference db v)
     v))
 
-;; Declared in igraph.core
-#_(defmethod add-to-graph [DatascriptGraph :normal-form] [g triples]
-  (let [s->db-id (into {}
-                       (map (fn [s id] [s id])
-                            (keys triples)
-                            (map (comp - inc) (range))))
-        ]
-    (letfn [(get-id [s]
-              (or (get-entity-id (:db g) s)
-                  (s->db-id s)))
-            
-            (collect-datom [id p acc o]
-              ;; returns {e :db/id <id>, <p> <o>}
-              (let [o' (or (get-id o)
-                           o)]
-                (conj acc {:db/id id p o'})))
-          
-            (collect-p-o [id acc p o]
-              ;; accumulates [<datom>...]
-              (if (not (p (:schema (:db g))))
-                (throw (Exception. (str "No schema for " p " in schema " (:schema (:db g)))))
-                (reduce (partial collect-datom id p) acc o)))
-
-            (collect-s-po [acc s po]
-              ;; accumulates [<datom>...]
-              (let [id (get-id s)
-                    ]
-                (reduce-kv (partial collect-p-o id)
-                           (conj acc {:db/id id, ::id s})
-                           po)))
-            ]
-      (assoc g :db
-             (d/db-with (:db g)
-                        (reduce-kv collect-s-po [] triples))))))
 
 (defmethod igraph/add-to-graph [DatascriptGraph :normal-form] [g triples]
-  (let [s->db-id (atom
-                  (into {}
-                        (map (fn [s id] [s id])
-                             (keys triples)
-                             (map (comp - inc) (range)))))
-        schema (:schema (:db g))
-        check-o (fn [p o]
-                  ;; returns p of o checks out else throws error
-                  (when (some (complement keyword?) o)
-                    (throw (Exception.
-                            (str "No schema declaration for "
-                                 p
-                                 " and "
-                                 o
-                                 " contains non-keyword. "
-                                 "(Will only auto-declare for refs)"))))
-                  p)
-        ;; find p's with no schema decl...
-        no-schema (reduce-kv (fn [acc s po]
-                               (reduce-kv (fn [acc p o]
-                                            (if (schema p)
-                                              acc
-                                              (conj acc (check-o p o))))
-                                          acc
-                                          po
-                                          ))
-                             #{}
-                             triples)
-                                          
-        ]
-    (letfn [(get-id [db s]
-              ;; returns nil or {::value ... ::new?...}
-              ;; new? means there was a keyword in object
-              ;; position not covered by a subject in the
-              ;; triples
-              (if-let [id (get-entity-id db s)]
-                (do
-                  {::value id
-                   ::new? false})
-                (if-let [id (@s->db-id s)]
+  (if (empty? triples)
+    g
+    (let [s->db-id (atom
+                    (into {}
+                          (map (fn [s id] [s id])
+                               (keys triples)
+                               (map (comp - inc) (range)))))
+          schema (:schema (:db g))
+          check-o (fn [p o]
+                    ;; returns p of o checks out else throws error
+                    (when (some (complement keyword?) o)
+                      (throw (Exception
+                              (str "No schema declaration for "
+                                   p
+                                   " and "
+                                   o
+                                   " contains non-keyword. "
+                                   "(Will only auto-declare for refs)"))))
+                    p)
+          ;; find p's with no schema decl...
+          no-schema (reduce-kv (fn [acc s po]
+                                 (reduce-kv (fn [acc p o]
+                                              (if (schema p)
+                                                acc
+                                                (conj acc (check-o p o))))
+                                            acc
+                                            po
+                                            ))
+                               #{}
+                               triples)
+          
+          ]
+      (letfn [(get-id [db s]
+                ;; returns nil or {::value ... ::new?...}
+                ;; new? means there was a keyword in object
+                ;; position not covered by a subject in the
+                ;; triples
+                (if-let [id (get-entity-id db s)]
                   (do
                     {::value id
                      ::new? false})
-                  ;; else this is an object with no id
-                  (if (keyword? s)
-                    ;; we need to add a new id for <s>
-                    (do (swap! s->db-id
-                               (fn [m]
-                                 (assoc m s
-                                        (- (inc (count m))))))
-                        {::value (@s->db-id s)
-                         ::new? true}))
-                  )))
-            
-            (collect-datom [db id p acc o]
-              ;; returns {e :db/id <id>, <p> <o>}
-              (let [db-id (get-id db o)
-                    new? (and (::value db-id) (::new? db-id))
-                    o' (or (::value db-id)
-                           o)
-                    ]
-                (conj (if new?
-                        (conj acc {:db/id o' ::id o})
-                        acc)
-                      {:db/id id p o'})))
-          
-            (collect-p-o [db id acc p o]
-              ;; accumulates [<datom>...]
-              (reduce (partial collect-datom db id p) acc o))
+                  (if-let [id (@s->db-id s)]
+                    (do
+                      {::value id
+                       ::new? false})
+                    ;; else this is an object with no id
+                    (if (keyword? s)
+                      ;; we need to add a new id for <s>
+                      (do (swap! s->db-id
+                                 (fn [m]
+                                   (assoc m s
+                                          (- (inc (count m))))))
+                          {::value (@s->db-id s)
+                           ::new? true}))
+                    )))
+              
+              (collect-datom [db id p acc o]
+                ;; returns {e :db/id <id>, <p> <o>}
+                (let [db-id (get-id db o)
+                      new? (and (::value db-id) (::new? db-id))
+                      o' (or (::value db-id)
+                             o)
+                      ]
+                  (conj (if new?
+                          (conj acc {:db/id o' ::id o})
+                          acc)
+                        {:db/id id p o'})))
+              
+              (collect-p-o [db id acc p o]
+                ;; accumulates [<datom>...]
+                (reduce (partial collect-datom db id p) acc o))
 
 
-            (collect-s-po [db acc s po]
-              ;; accumulates [<datom>...]
-              (let [id (::value (get-id db s))
-                    ]
-                (reduce-kv (partial collect-p-o db id)
-                           (conj acc {:db/id id, ::id s})
-                           po)))
-            
-            (update-schema [db]
-              ;; Intalls default schema declaration for new refs
-              (-> db
-                  (update 
-                      :schema
-                      (fn [schema]
-                        (reduce (fn [s p]
-                                  (assoc s p
-                                         {:db/type :db.type/ref
-                                          :db/cardinality :db.cardinality/many
-                                          }))
-                                schema
-                                no-schema)))
-                  (update
-                   :rschema
-                   (fn [rschema]
-                     (reduce (fn [r p]
-                               (->
-                                r
-                                (update :db/index #(conj (or % #{})  p))
-                                (update :db.type/ref #(conj (or % #{}) p))
-                                (update :db.cardinality/many
-                                        #(conj (or % #{}) p))))
-                             rschema
-                             no-schema)))))
+              (collect-s-po [db acc s po]
+                ;; accumulates [<datom>...]
+                (let [id (::value (get-id db s))
+                      ]
+                  (reduce-kv (partial collect-p-o db id)
+                             (conj acc {:db/id id, ::id s})
+                             po)))
+              
+              (update-schema [db]
+                ;; Intalls default schema declaration for new refs
+                (-> db
+                    (update 
+                     :schema
+                     (fn [schema]
+                       (reduce (fn [s p]
+                                 (assoc s p
+                                        {:db/type :db.type/ref
+                                         :db/cardinality :db.cardinality/many
+                                         }))
+                               schema
+                               no-schema)))
+                    (update
+                     :rschema
+                     (fn [rschema]
+                       (reduce (fn [r p]
+                                 (->
+                                  r
+                                  (update :db/index #(conj (or % #{})  p))
+                                  (update :db.type/ref #(conj (or % #{}) p))
+                                  (update :db.cardinality/many
+                                          #(conj (or % #{}) p))))
+                               rschema
+                               no-schema)))))
 
-                      
-            ]
-      (let [db' (update-schema (:db g))
-            ]
-        (assoc g :db
-               (d/db-with db'
-                (reduce-kv (partial collect-s-po db') [] triples)))))))
+              
+              ]
+        (let [db' (update-schema (:db g))
+              ]
+          (assoc g :db
+                 (d/db-with db'
+                            (reduce-kv (partial collect-s-po db') [] triples))))))))
 
 
 ;; Declared in igraph.core
 (defmethod igraph/add-to-graph [DatascriptGraph :vector-of-vectors] [g triples]
-  (igraph/add-to-graph g
-                       (igraph/normal-form
-                        (igraph/add (graph/make-graph)
-                                    (with-meta triples
-                                      {:triples-format :vector-of-vectors})))))
+  (if (empty? triples)
+    g
+    (igraph/add-to-graph g
+                         (igraph/normal-form
+                          (igraph/add (graph/make-graph)
+                                      (with-meta triples
+                                        {:triples-format :vector-of-vectors}))))))
 ;; Declared in igraph.core
 (defmethod igraph/add-to-graph [DatascriptGraph :vector] [g triple]
-  (igraph/add-to-graph g
-                       (igraph/normal-form
-                        (igraph/add (graph/make-graph)
-                                    (with-meta [triple]
-                                      {:triples-format :vector-of-vectors})))))
+  (if (empty? triple)
+    g
+    (igraph/add-to-graph
+     g
+     (igraph/normal-form
+      (igraph/add (graph/make-graph)
+                  (with-meta [triple]
+                    {:triples-format :vector-of-vectors}))))))
 
 (defn- shared-keys [m1 m2]
   "Returns {<shared key>...} for <m1> and <m2>
@@ -301,79 +278,74 @@ Where
                     (set (keys m2))))
 
 
-(defmethod igraph/remove-from-graph [DatascriptGraph :normalForm]
-  [g to-remove]
-  ;; (assoc g :db
-  ;;        (d/db-with (:db g)
-  ;;                   (reduce (par
-  (shared-keys (g) to-remove)
-  )
-
-
-
 (defmethod igraph/remove-from-graph [DatascriptGraph :vector-of-vectors]
   [g to-remove]
-  (letfn [(collect-remove-clause [acc v]
-            (conj acc 
-                  (case (count v)
-                    1
-                    (let [[s] v
-                          ]
-                      [:db/retractEntity [::id s]])
-                    2
-                    (let [[s p] v
-                          ]
-                      [:db.fn/retractAttribute [::id s] p])
-                    3
-                    (let [[s p o] v
-                          o (if (= (:db/type ((:schema (:db g)) p))
-                                   :db.type/ref)
-                              [::id o]
-                              o)
-                          ]
-                      [:db/retract [::id s] p o]))))
-          ]
-    (assoc g :db
-           (d/db-with
-            (:db g)
-            (reduce collect-remove-clause
-                    []
-                    to-remove)))))
-
+  (if (empty? to-remove)
+    g
+    (letfn [(collect-remove-clause [acc v]
+              (conj acc 
+                    (case (count v)
+                      1
+                      (let [[s] v
+                            ]
+                        [:db/retractEntity [::id s]])
+                      2
+                      (let [[s p] v
+                            ]
+                        [:db.fn/retractAttribute [::id s] p])
+                      3
+                      (let [[s p o] v
+                            o (if (= (:db/type ((:schema (:db g)) p))
+                                     :db.type/ref)
+                                [::id o]
+                                o)
+                            ]
+                        [:db/retract [::id s] p o]))))
+            ]
+      (assoc g :db
+             (d/db-with
+              (:db g)
+              (reduce collect-remove-clause
+                      []
+                      to-remove))))))
 
   
 (defmethod igraph/remove-from-graph [DatascriptGraph :vector]
   [g to-remove]
-  (igraph/remove-from-graph g (with-meta
-                                [to-remove]
-                                {:triples-format :vector-of-vectors})))
+  (if (empty? to-remove)
+    g
+    (igraph/remove-from-graph g (with-meta
+                                  [to-remove]
+                                  {:triples-format :vector-of-vectors}))))
   
 
 (defmethod igraph/remove-from-graph [DatascriptGraph :normal-form]
   [g to-remove]
-  (letfn [(collect-o [acc o]
-            ;; acc is [s p]
-            (conj acc o)
-            )
-          (collect-p [s acc p]
-            ;; acc is [s]
-            (reduce collect-o
-                    (conj acc p)
-                    (get-in to-remove [s p]))
-            )
-          (collect-clause-for-s [acc s]
-            ;; accumulates <spo> 
-            (conj acc
-                  (reduce (partial collect-p s)
-                          [s]
-                          (keys (get to-remove s)))))
+  (if (empty? to-remove)
+    g
+    (letfn [(collect-o [acc o]
+              ;; acc is [s p]
+              (conj acc o)
+              )
+            (collect-p [s acc p]
+              ;; acc is [s]
+              (reduce collect-o
+                      (conj acc p)
+                      (get-in to-remove [s p]))
+              )
+            (collect-clause-for-s [acc s]
+              ;; accumulates <spo> 
+              (conj acc
+                    (reduce (partial collect-p s)
+                            [s]
+                            (keys (get to-remove s)))))
 
-          ]
-    (igraph/remove-from-graph
-     g
-     (with-meta
-       (graph/vector-of-triples (igraph/add (graph/make-graph) to-remove))
-       {:triples-format :vector-of-vectors}))))
+            ]
+      (igraph/remove-from-graph
+       g
+       (with-meta
+         (graph/vector-of-triples (igraph/add (graph/make-graph) to-remove))
+         {:triples-format :vector-of-vectors})))))
 
 (defn get-subjects [db]
   "Returns [<s>...] for <db>
@@ -383,8 +355,6 @@ Where
 "
   (map (fn [d] (get-valAt d "v"))
        (d/datoms db :avet ::id)))
-
-
 
 (defn get-normal-form [db]
   "Returns contents of <db> s.t. {<s> {<p> #{<o>...}...}...}
