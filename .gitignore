@@ -1,6 +1,6 @@
 /target
 /classes
-/cljs-test/datascript-graph/node_modules
+/cljs-test/ont_app/datascript-graph/node_modules
 /checkouts
 /node_modules
 /out

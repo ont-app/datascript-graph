@@ -18,8 +18,8 @@ For purposes of this discussion, we'll assume the following namespace declaratio
 ```
 (ns user
   (:require 
-    [igraph.core :as igraph :refer [add, unique, query]]
-    [datascript-graph.core :as dsg :refer [make-graph]]))
+    [ont-app.igraph.core :as igraph :refer [add, unique, query]]
+    [ont-app.datascript-graph.core :as dsg :refer [make-graph]]))
 
 ```
 A new graph is created with `make-graph`. In the simplest case it may
@@ -74,7 +74,7 @@ You can get the native datascript object with `:db`...
 ```
 (:db g)
 ;;=> 
-;; #datascript/DB {:schema {:datascript-graph.core/id #:db{:unique :db.unique/identity, :doc "Identifies subjects"}, :datascript-graph.core/top {:db/type :db.type/boolean, :doc "Indicates entities which are not otherwise elaborated.Use this if you encounter a Nothing found for entity id <x>error."}, :isa #:db{:type :db.type/ref, :cardinality :db.cardinality/many}, :likes #:db{:type :db.type/ref, :cardinality :db.cardinality/many}}, :datoms [[1 :isa 2 536870913] [1 :likes 3 536870913] [1 :datascript-graph.core/id :john 536870913] [2 :datascript-graph.core/id :person 536870913] [3 :datascript-graph.core/id :pizza 536870913] [4 :isa 2 536870913] [4 :likes 5 536870913] [4 :datascript-graph.core/id :mary 536870913] [5 :datascript-graph.core/id :pasta 536870913]]}
+;; #datascript/DB {:schema {:ont-app.datascript-graph.core/id #:db{:unique :db.unique/identity, :doc "Identifies subjects"}, :ont-app.datascript-graph.core/top {:db/type :db.type/boolean, :doc "Indicates entities which are not otherwise elaborated.Use this if you encounter a Nothing found for entity id <x>error."}, :isa #:db{:type :db.type/ref, :cardinality :db.cardinality/many}, :likes #:db{:type :db.type/ref, :cardinality :db.cardinality/many}}, :datoms [[1 :isa 2 536870913] [1 :likes 3 536870913] [1 :ont-app.datascript-graph.core/id :john 536870913] [2 :ont-app.datascript-graph.core/id :person 536870913] [3 :ont-app.datascript-graph.core/id :pizza 536870913] [4 :isa 2 536870913] [4 :likes 5 536870913] [4 :ont-app.datascript-graph.core/id :mary 536870913] [5 :ont-app.datascript-graph.core/id :pasta 536870913]]}
 
 ```
 
@@ -90,20 +90,20 @@ default schema.
 
 ```
 {
-  :datascript-graph.core/id 
+  :ont-app.datascript-graph.core/id 
   {
     :db/unique :db.unique/identity
   }
-  :datascript-graph.core/top
+  :ont-app.datascript-graph.core/top
   {
     :db/type :db.type/boolean
   }
 ```
 
-The `:datascript-graph.core/id` property is used to assign the `s`
+The `:ont-app.datascript-graph.core/id` property is used to assign the `s`
 identifier to the associated datascript record.
 
-`:datascript-graph.core/top` exists as a kind of dummy property that
+`:ont-app.datascript-graph.core/top` exists as a kind of dummy property that
 can be used in rare cases to keep a given subject from being an
 orphan, you may want to use this if you encounter a "Nothing found for
 entity id <x>" error. The name Top is chosen because it's assumed that

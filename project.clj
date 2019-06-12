@@ -19,7 +19,7 @@
    {:test {:source-paths ["src" "cljs-test"]
            :compiler {:output-to "resources/test/compiled.js"
                       ;; entry point for doo-runner:
-                      :main igraph.browser ;; at cljs-test/igraph/browser.cljs
+                      :main ont-app.igraph.browser ;; at cljs-test/igraph/browser.cljs
                       :optimizations :none
                       :warnings {:bad-method-signature false}
                       }}}

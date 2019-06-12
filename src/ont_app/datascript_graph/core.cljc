@@ -1,14 +1,11 @@
-(ns datascript-graph.core
+(ns ont-app.datascript-graph.core
   (:require
    [clojure.set :as set]
-   ;; [clojure.string :as str]
    [datascript.core :as d]
    [datascript.db :as db]
-   [igraph.core :as igraph]
-   [igraph.graph :as graph]
-   ;;[taoensso.timbre :as log]
-   #_[datascript.transit :as dt])
-  ;; (:gen-class)
+   [ont-app.igraph.core :as igraph]
+   [ont-app.igraph.graph :as graph]
+   )
   )
 
 
@@ -438,7 +435,7 @@ Where
             (d/q '[:find ?p ?o
                    :in $ ?s
                    :where
-                   [?e :datascript-graph.core/id ?s]
+                   [?e :ont-app.datascript-graph.core/id ?s]
                    [?e ?p ?o]]
                  db s))))
 
@@ -453,7 +450,7 @@ Where
             (d/q '[:find ?o
                    :in $ ?s ?p
                    :where
-                   [?e :datascript-graph.core/id ?s]
+                   [?e :ont-app.datascript-graph.core/id ?s]
                    [?e ?p ?o]]
                  db s p))))
 

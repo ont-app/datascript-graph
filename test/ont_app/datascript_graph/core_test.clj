@@ -1,8 +1,8 @@
-(ns datascript-graph.core-test
-  (:require [cljs.test :refer-macros [async deftest is testing]]
-            [igraph.core :as igraph]
-            [igraph.graph :as graph]
-            [datascript-graph.core :as dsg]
+(ns ont-app.datascript-graph.core-test
+  (:require [clojure.test :refer :all]
+            [ont-app.igraph.core :as igraph]
+            [ont-app.igraph.graph :as graph]
+            [ont-app.datascript-graph.core :as dsg]
             ))
 
 
@@ -20,16 +20,13 @@
                          :db/type :db.type/ref
                          }
                   })
+
 (def mini-content [[:john :isa :person]
                    [:person ::dsg/top true]])
 
 (def mini-graph (igraph/add (dsg/make-graph)
                             mini-content))
-#_(deftest trivial-test
-  (testing "Calls a test with no real content just to get a pulse."
-    (is (= 2 (+ 1 1)))
-    (is (= (mini-graph :john :isa :person)
-           :person))))
+ 
 
 (def test-content [[:john :isa :person]
                    [:john :likes :meat]
@@ -54,7 +51,7 @@
                    [:thing ::dsg/top true]
                    ])
 
-(def test-graph (igraph/add (dsg/make-graph test-schema)
+(def test-graph (igraph/add (dsg/make-graph)
                             test-content))
 
 (def standard-graph (igraph/add (graph/make-graph)
@@ -77,7 +74,6 @@
                          (assoc context :phase :sc)
                          #{}))
    []])
-
 
 (deftest graph-equivalence-test
   (testing "Most functions should be equivalent to igraph.graph"
