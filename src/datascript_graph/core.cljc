@@ -12,7 +12,7 @@
   )
 
 
-(defn Exception [msg]
+(defn error [msg]
   #?(:clj (Exception. msg)
      :cljs (js/Error msg)))
 
@@ -144,7 +144,7 @@ Where
           check-o (fn [p o]
                     ;; returns p of o checks out else throws error
                     (when (some (complement keyword?) o)
-                      (throw (Exception
+                      (throw (error
                               (str "No schema declaration for "
                                    p
                                    " and "
