@@ -5,7 +5,7 @@
 /node_modules
 /out
 /resources
-
+package-lock.json
 profiles.clj
 pom.xml
 pom.xml.asc

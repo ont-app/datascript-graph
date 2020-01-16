@@ -33,8 +33,6 @@ Where
     DatascriptGraph [db]
   igraph/IGraph
   (normal-form [this] (get-normal-form db))
-  (add [this to-add] (igraph/add-to-graph this to-add))
-  (subtract [this to-subtract] (igraph/remove-from-graph this to-subtract))
   (subjects [this] (get-subjects db))
   (get-p-o [this s] (query-for-p-o db s))
   (get-o [this s p] (query-for-o db s p))
@@ -47,6 +45,10 @@ Where
   (invoke [g s] (igraph/get-p-o g s))
   (invoke [g s p] (igraph/match-or-traverse g s p))
   (invoke [g s p o] (igraph/match-or-traverse g s p o))
+
+  igraph/IGraphImmutable
+  (add [this to-add] (igraph/add-to-graph this to-add))
+  (subtract [this to-subtract] (igraph/remove-from-graph this to-subtract))
 
   igraph/IGraphSet
   (union [g1 g2] (graph-union g1 g2))
@@ -314,7 +316,15 @@ Where
     (igraph/remove-from-graph g (with-meta
                                   [to-remove]
                                   {:triples-format :vector-of-vectors}))))
-  
+
+(defmethod igraph/remove-from-graph [DatascriptGraph :underspecified-triple]
+  [g to-remove]
+  (if (empty? to-remove)
+    g
+    (igraph/remove-from-graph g (with-meta
+                                  [to-remove]
+                                  {:triples-format :vector-of-vectors}))))
+
 
 (defmethod igraph/remove-from-graph [DatascriptGraph :normal-form]
   [g to-remove]
