@@ -394,14 +394,22 @@ Where
          (graph/vector-of-triples (igraph/add (graph/make-graph) to-remove))
          {:triples-format :vector-of-vectors})))))
 
+(declare query-for-p-o)
 (defn get-subjects [db]
   "Returns [<s>...] for <db>
 Where 
-<s> is a subject s.t. [<e> ::id <s>] in <db>
+<s> is a subject s.t. [<e> ::id <s>] in <db> with non-empty p-o
 <db> is a Datascript DB
 "
-  (map (fn [d] (get-valAt d "v"))
-       (d/datoms db :avet ::id)))
+  (lazy-seq 
+   (reduce (fn [acc d]
+             (if-let [s (get-valAt d "v")]
+               (if (empty? (query-for-p-o db s))
+                 acc
+                 (conj acc s))
+               acc))
+           '()
+           (d/datoms db :avet ::id))))
 
 (defn get-normal-form [db]
   "Returns contents of <db> s.t. {<s> {<p> #{<o>...}...}...}

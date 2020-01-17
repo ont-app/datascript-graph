@@ -153,7 +153,7 @@
              {:?liker :mary, :?liked :coke}}))))
 
 
-(def igraph-test-schema {::has-vector
+(def igraph-test-schema {:ig-ctest/has-vector
                          {:db/cardinality :db.cardinality/one}
                          })
 ;; see https://github.com/tonsky/datascript/wiki/Tips-&-tricks
