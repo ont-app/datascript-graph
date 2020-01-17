@@ -167,6 +167,9 @@ Where
           ;; find p's with no schema decl...
           no-schema (reduce-kv (fn [acc s po]
                                  (reduce-kv (fn [acc p o]
+                                              (glog/debug! :log/about-to-check-o
+                                                           :log/schema schema
+                                                           :log/property p)
                                               (if (schema p)
                                                 acc
                                                 (conj acc (check-o p o))))
