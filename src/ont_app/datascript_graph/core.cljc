@@ -1,17 +1,16 @@
 (ns ont-app.datascript-graph.core
   (:require
    [clojure.set :as set]
+   ;; 3rd party
    [datascript.core :as d]
    [datascript.db :as db]
+   ;; ont-app
+   [ont-app.graph-log.core :as glog]
    [ont-app.igraph.core :as igraph]
    [ont-app.igraph.graph :as graph]
    )
   )
 
-
-(defn error [msg]
-  #?(:clj (Exception. msg)
-     :cljs (js/Error msg)))
 
 (declare graph-union)
 (declare graph-difference)
@@ -37,6 +36,7 @@ Where
   (get-p-o [this s] (query-for-p-o db s))
   (get-o [this s p] (query-for-o db s p))
   (ask [this s p o] (ask-s-p-o db s p o))
+  (mutability [this] ::igraph/immutable)
   (query [this query-spec] (normalized-query-output db query-spec))
   
   #?(:clj clojure.lang.IFn
@@ -102,7 +102,14 @@ Where
 <s> is a subject s.t. [<e> ::id <s>] in (:db <g>)
 <g> is an instance of DatascriptGraph
 "
-  (d/entity db s))
+  (glog/debug! ::starting-get-entity-id
+               :log/db db
+               :log/subject s)
+  
+  (glog/value-debug!
+   :log/get-entity-id
+   [:log/subject s]
+   (d/entity db s)))
 
 (defn get-reference [db e]
   "Returns <s> for <e> in <g>
@@ -132,24 +139,30 @@ Where
 
 
 (defmethod igraph/add-to-graph [DatascriptGraph :normal-form] [g triples]
+  (glog/debug! :log/starting-add-to-graph
+               :log/graph g
+               :log/triples triples)
   (if (empty? triples)
     g
     (let [s->db-id (atom
                     (into {}
-                          (map (fn [s id] [s id])
+                          (map vector
                                (keys triples)
                                (map (comp - inc) (range)))))
           schema (:schema (:db g))
           check-o (fn [p o]
                     ;; returns p of o checks out else throws error
                     (when (some (complement keyword?) o)
-                      (throw (error
+                      (throw (ex-info
                               (str "No schema declaration for "
                                    p
                                    " and "
                                    o
                                    " contains non-keyword. "
-                                   "(Will only auto-declare for refs)"))))
+                                   "(Will only auto-declare for refs)")
+                              {:type ::no-schema-declaration
+                               :p p
+                               :o o})))
                     p)
           ;; find p's with no schema decl...
           no-schema (reduce-kv (fn [acc s po]
@@ -169,27 +182,39 @@ Where
                 ;; new? means there was a keyword in object
                 ;; position not covered by a subject in the
                 ;; triples
-                (if-let [id (get-entity-id db s)]
-                  (do
-                    {::value id
-                     ::new? false})
-                  (if-let [id (@s->db-id s)]
+                (glog/debug! :log/starting-get-id
+                             :log/db db
+                             :log/subject s)
+                (if (not (keyword? s))
+                  (glog/value-debug! :log/non-keyword-s-in-get-id
+                                     [:log/subject s]
+                                     nil)
+                  ;; else s is a keyword
+                  (if-let [id (get-entity-id db s)]
                     (do
                       {::value id
                        ::new? false})
-                    ;; else this is an object with no id
-                    (if (keyword? s)
+                    (if-let [id (@s->db-id s)]
+                      (do
+                        {::value id
+                         ::new? false})
+                      ;; else this is an object with no id
                       ;; we need to add a new id for <s>
                       (do (swap! s->db-id
                                  (fn [m]
                                    (assoc m s
                                           (- (inc (count m))))))
                           {::value (@s->db-id s)
-                           ::new? true}))
-                    )))
+                           ::new? true})))
+                  ))
               
               (collect-datom [db id p acc o]
                 ;; returns {e :db/id <id>, <p> <o>}
+                (glog/debug! :log/starting-collect-datom
+                             :log/id id
+                             :log/property p
+                             :log/acc acc
+                             :log/object o)
                 (let [db-id (get-id db o)
                       new? (and (::value db-id) (::new? db-id))
                       o' (or (::value db-id)
@@ -202,11 +227,20 @@ Where
               
               (collect-p-o [db id acc p o]
                 ;; accumulates [<datom>...]
+                (glog/debug! :log/starting-collect-p-o
+                             :log/id id
+                             :log/acc acc
+                             :log/property p
+                             :log/object o)
                 (reduce (partial collect-datom db id p) acc o))
 
 
               (collect-s-po [db acc s po]
                 ;; accumulates [<datom>...]
+                (glog/debug! :log/starting-collect-s-po
+                             :log/acc acc
+                             :log/subject s
+                             :log/desc po)
                 (let [id (::value (get-id db s))
                       ]
                   (reduce-kv (partial collect-p-o db id)
@@ -243,9 +277,12 @@ Where
               ]
         (let [db' (update-schema (:db g))
               ]
-          (assoc g :db
+          (assoc g
+                 :db
                  (d/db-with db'
-                            (reduce-kv (partial collect-s-po db') [] triples))))))))
+                            (reduce-kv (partial collect-s-po db')
+                                       []
+                                       triples))))))))
 
 
 ;; Declared in igraph.core

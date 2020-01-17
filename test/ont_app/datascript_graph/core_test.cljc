@@ -2,11 +2,22 @@
   (:require 
    #?(:cljs [cljs.test :refer-macros [async deftest is testing]]
       :clj [clojure.test :refer :all])
+   [ont-app.graph-log.core :as glog]
    [ont-app.igraph.core :as igraph]
    [ont-app.igraph.graph :as graph]
-   ;;[ont-app.igraph.core-test :as igraph-test]
+   [ont-app.igraph.core-test :as igraph-test]
    [ont-app.datascript-graph.core :as dsg]
    ))
+
+
+(def glog-config (igraph/add glog/ontology
+                             [[:glog/LogGraph :glog/level :glog/DEBUG]
+                              [:log/subject :rdf/type :glog/InformsUri]
+                              [:log/property :rdf/type :glog/InformsUri]
+                              [:log/object :rdf/type :glog/InformsUri]
+                              ]))
+
+(glog/log-reset! glog-config)
 
 
 (def test-schema {
@@ -140,3 +151,23 @@
                          [?_liked ::dsg/id ?liked]]))
            #{{:?liker :john, :?liked :meat}
              {:?liker :mary, :?liked :coke}}))))
+
+
+(def igraph-test-schema {::igraph-test/has-vector
+                         {:db/cardinality :db.cardinality/one}
+                         })
+;; see https://github.com/tonsky/datascript/wiki/Tips-&-tricks
+
+(reset! igraph-test/eg (igraph/add (dsg/make-graph igraph-test-schema)
+                                   igraph-test/eg-data
+                                   ))
+(reset! igraph-test/other-eg (igraph/add (dsg/make-graph igraph-test-schema)
+                                  igraph-test/other-eg-data))
+(reset! igraph-test/eg-with-types (igraph/add (dsg/make-graph igraph-test-schema)
+                                              igraph-test/types-data))
+
+(deftest igraph-readme
+  (testing "igraph-readme"
+    (glog/log-reset! glog-config)
+    #dbg
+    (igraph-test/readme)))
