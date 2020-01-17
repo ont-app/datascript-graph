@@ -162,12 +162,13 @@
                                    igraph-test/eg-data
                                    ))
 (reset! igraph-test/other-eg (igraph/add (dsg/make-graph igraph-test-schema)
-                                  igraph-test/other-eg-data))
-(reset! igraph-test/eg-with-types (igraph/add (dsg/make-graph igraph-test-schema)
-                                              igraph-test/types-data))
+                                         igraph-test/other-eg-data))
+(def types (igraph/add (dsg/make-graph igraph-test-schema)
+                       igraph-test/types-data))
+(reset! igraph-test/eg-with-types (igraph/union @igraph-test/eg
+                                                types))
 
 (deftest igraph-readme
   (testing "igraph-readme"
     (glog/log-reset! glog-config)
-    #dbg
     (igraph-test/readme)))
