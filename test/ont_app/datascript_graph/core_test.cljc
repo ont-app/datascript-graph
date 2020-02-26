@@ -158,6 +158,8 @@
                          })
 ;; see https://github.com/tonsky/datascript/wiki/Tips-&-tricks
 
+(reset! igraph-test/initial-graph (dsg/make-graph igraph-test-schema))
+
 (reset! igraph-test/eg (igraph/add (dsg/make-graph igraph-test-schema)
                                    igraph-test/eg-data
                                    ))
@@ -165,8 +167,13 @@
                                          igraph-test/other-eg-data))
 (def types (igraph/add (dsg/make-graph igraph-test-schema)
                        igraph-test/types-data))
+
 (reset! igraph-test/eg-with-types (igraph/union @igraph-test/eg
                                                 types))
+
+(reset! igraph-test/eg-for-cardinality-1
+        (igraph/add @igraph-test/eg
+                    igraph-test/cardinality-1-appendix))
 
 (deftest igraph-readme
   (testing "igraph-readme"
