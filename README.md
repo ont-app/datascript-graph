@@ -9,8 +9,9 @@ under both clj and cljs.
 
 This is available on [Clojars](https://clojars.org/ont-app/datascript-graph):
 
-[ont-app/datascript-graph "0.1.0-SNAPSHOT"]
+[![Clojars Project](https://img.shields.io/clojars/v/ont-app/datascript-graph.svg)](https://clojars.org/ont-app/datascript-graph)
 
+Additional documentation is available at https://cljdoc.org/d/ont-app/datascript-graph/0.1.0 .
 
 ## Usage
 

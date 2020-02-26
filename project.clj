@@ -14,6 +14,7 @@
                  ]
   :plugins [[lein-cljsbuild "1.1.7"
              :exclusions [[org.clojure/clojure]]]
+            [lein-codox "0.10.6"]
             [lein-doo "0.1.10"]]
   :target-path "target/%s"
   :resource-paths ["resources" "target/cljsbuild"]
@@ -40,7 +41,7 @@
 
 
   :profiles {:uberjar {:aot :all}}
-
+  :codox {:output-path "doc"}
   :clean-targets ^{:protect false} ["resources/public/js/compiled"
                                     "resources/test"
                                     :target-path]
