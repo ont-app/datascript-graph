@@ -21,16 +21,8 @@
   :cljsbuild
   {:test-commands {"test" ["lein" "doo" "node" "test" "once"]}
    :builds
-   {:dev {:source-paths ["src"]
-          :compiler {
-                     :main ont-app.datascript-graph.core 
-                     :asset-path "js/compiled/out"
-                     :output-to "resources/public/js/datascript-graph.js"
-                     :source-map-timestamp true
-                     :output-dir "resources/public/js/compiled/out"
-                     :optimizations :none
-                     }
-          }
+   {
+
    ;; for testing the cljs incarnation
    ;; run with 'lein doo firefox test once', or swap in some other browser
    :test {:source-paths ["src" "test"]
@@ -46,18 +38,11 @@
                       }}}
    } ;; cljsbuild
 
- ;; :main ^:skip-aot datascript-graph.core
 
-  :profiles {:uberjar {:aot :all}
-             :dev {:dependencies [[binaryage/devtools "0.9.10"]
-                                  ]
-                   :source-paths ["src"] 
-                   :clean-targets
-                   ^{:protect false}
-                   ["resources/public/js/compiled"
-                    "resources/test"
-                    :target-path
-                    ]
-                   }
+  :profiles {:uberjar {:aot :all}}
 
-             })
+  :clean-targets ^{:protect false} ["resources/public/js/compiled"
+                                    "resources/test"
+                                    :target-path]
+
+  )  
