@@ -6,6 +6,19 @@
    [datascript.db :as db]
    ;; ont-app
    [ont-app.graph-log.core :as glog]
+   [ont-app.graph-log.levels :as dbg-level
+    :refer [
+            trace
+            debug
+            info
+            warn
+            fatal
+            value-trace
+            value-debug
+            value-info
+            value-warn
+            value-fatal
+            ]]
    [ont-app.igraph.core :as igraph]
    [ont-app.igraph.graph :as graph]
    )
@@ -102,11 +115,11 @@ Where
 <s> is a subject s.t. [<e> ::id <s>] in (:db <g>)
 <g> is an instance of DatascriptGraph
 "
-  (glog/debug! ::starting-get-entity-id
+  (debug ::starting-get-entity-id
                :log/db db
                :log/subject s)
   
-  (glog/value-debug!
+  (value-debug
    :log/get-entity-id
    [:log/subject s]
    (d/entity db s)))
@@ -139,9 +152,9 @@ Where
 
 
 (defmethod igraph/add-to-graph [DatascriptGraph :normal-form] [g triples]
-  (glog/debug! :log/starting-add-to-graph
-               :log/graph g
-               :log/triples triples)
+  (debug :log/starting-add-to-graph
+         :log/graph g
+         :log/triples triples)
   (if (empty? triples)
     g
     (let [s->db-id (atom
@@ -167,9 +180,9 @@ Where
           ;; find p's with no schema decl...
           no-schema (reduce-kv (fn [acc s po]
                                  (reduce-kv (fn [acc p o]
-                                              (glog/debug! :log/about-to-check-o
-                                                           :log/schema schema
-                                                           :log/property p)
+                                              (debug :log/about-to-check-o
+                                                     :log/schema schema
+                                                     :log/property p)
                                               (if (schema p)
                                                 acc
                                                 (conj acc (check-o p o))))
@@ -185,13 +198,13 @@ Where
                 ;; new? means there was a keyword in object
                 ;; position not covered by a subject in the
                 ;; triples
-                (glog/debug! :log/starting-get-id
-                             :log/db db
-                             :log/subject s)
+                (debug :log/starting-get-id
+                       :log/db db
+                       :log/subject s)
                 (if (not (keyword? s))
-                  (glog/value-debug! :log/non-keyword-s-in-get-id
-                                     [:log/subject s]
-                                     nil)
+                  (value-debug :log/non-keyword-s-in-get-id
+                               [:log/subject s]
+                               nil)
                   ;; else s is a keyword
                   (if-let [id (get-entity-id db s)]
                     (do
@@ -213,11 +226,11 @@ Where
               
               (collect-datom [db id p acc o]
                 ;; returns {e :db/id <id>, <p> <o>}
-                (glog/debug! :log/starting-collect-datom
-                             :log/id id
-                             :log/property p
-                             :log/acc acc
-                             :log/object o)
+                (debug :log/starting-collect-datom
+                        :log/id id
+                        :log/property p
+                        :log/acc acc
+                        :log/object o)
                 (let [db-id (get-id db o)
                       new? (and (::value db-id) (::new? db-id))
                       o' (or (::value db-id)
@@ -230,20 +243,20 @@ Where
               
               (collect-p-o [db id acc p o]
                 ;; accumulates [<datom>...]
-                (glog/debug! :log/starting-collect-p-o
-                             :log/id id
-                             :log/acc acc
-                             :log/property p
-                             :log/object o)
+                (debug :log/starting-collect-p-o
+                        :log/id id
+                        :log/acc acc
+                        :log/property p
+                        :log/object o)
                 (reduce (partial collect-datom db id p) acc o))
 
 
               (collect-s-po [db acc s po]
                 ;; accumulates [<datom>...]
-                (glog/debug! :log/starting-collect-s-po
-                             :log/acc acc
-                             :log/subject s
-                             :log/desc po)
+                (debug :log/starting-collect-s-po
+                       :log/acc acc
+                       :log/subject s
+                       :log/desc po)
                 (let [id (::value (get-id db s))
                       ]
                   (reduce-kv (partial collect-p-o db id)
