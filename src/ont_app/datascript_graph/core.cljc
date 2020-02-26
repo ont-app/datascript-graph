@@ -6,22 +6,25 @@
    [datascript.db :as db]
    ;; ont-app
    [ont-app.graph-log.core :as glog]
-   [ont-app.graph-log.levels :as dbg-level
-    :refer [
-            trace
-            debug
-            info
-            warn
-            fatal
-            value-trace
-            value-debug
-            value-info
-            value-warn
-            value-fatal
-            ]]
    [ont-app.igraph.core :as igraph]
    [ont-app.igraph.graph :as graph]
+   #?(:clj [ont-app.graph-log.levels :as dbg-level :refer :all])
    )
+  #?(:cljs
+     (:require-macros
+      [ont-app.graph-log.levels :as dbg-level
+       :refer [
+               trace
+               debug
+               info
+               warn
+               fatal
+               value-trace
+               value-debug
+               value-info
+               value-warn
+               value-fatal
+               ]]))
   )
 
 
