@@ -1,4 +1,4 @@
-(defproject ont-app/datascript-graph "0.1.0"
+(defproject ont-app/datascript-graph "0.1.1-SNAPSHOT"
   :description "Defines a datascript implementation of the IGraph protocol."
   :url "http://example.com/FIXME"
   :license {:name "EPL-2.0 OR GPL-2.0-or-later WITH Classpath-exception-2.0"
@@ -9,8 +9,8 @@
                  ;; 3rd party libs:
                  [datascript "0.18.10"]
                  ;; ont-app libs:
-                 [ont-app/graph-log "0.1.0"]
-                 [ont-app/igraph "0.1.4"]
+                 [ont-app/graph-log "0.1.1-SNAPSHOT"]
+                 [ont-app/igraph "0.1.5-SNAPSHOT"]
                  ]
   :plugins [[lein-cljsbuild "1.1.7"
              :exclusions [[org.clojure/clojure]]]
