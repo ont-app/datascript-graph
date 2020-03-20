@@ -40,7 +40,7 @@
    } ;; cljsbuild
 
 
-  :profiles {:uberjar {:aot :all}}
+  :profiles {:uberjar {}}
   :codox {:output-path "doc"}
   :clean-targets ^{:protect false} ["resources/public/js/compiled"
                                     "resources/test"
