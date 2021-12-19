@@ -5,6 +5,19 @@ This is an implementation of the
 [datascript](https://github.com/tonsky/datascript). It should work
 under both clj and cljs.
 
+The general idea here is to provide a standard container in clojure
+for labeled directed graphs:
+
+```
+(g) -> {s {p #{o}}}
+(g s) -> {p #{o}}
+(g s p) -> #{o}
+(g s p o) -> <truthy>
+```
+
+Where `s` `p` and `o` are respectively `subject`, `predicate`, and `object`.
+
+
 ## Installation
 
 This is available on [Clojars](https://clojars.org/ont-app/datascript-graph):
